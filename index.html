@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart Hub Client</title>
+  <style>
+    :root { --bg: #111; --text: #fff; --accent: #ff9500; --card-bg: #222; }
+    body { background: var(--bg); color: var(--text); font-family: system-ui, sans-serif; margin: 0; padding: 15px; display: flex; flex-direction: column; height: 100vh; box-sizing: border-box; }
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+    #clock { font-size: 3.5rem; font-weight: bold; margin: 0; }
+    #date { font-size: 1.1rem; color: #aaa; }
+    .weather-widget { background: var(--card-bg); padding: 10px 15px; border-radius: 8px; text-align: right; }
+    .section-title { font-size: 0.9rem; text-transform: uppercase; color: var(--accent); letter-spacing: 1px; margin: 15px 0 5px 0; }
+    .list-container { flex: 1; overflow-y: auto; }
+    .card { background: var(--card-bg); padding: 12px; margin-bottom: 8px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; }
+    .card .source { font-size: 0.75rem; text-transform: uppercase; padding: 2px 6px; border-radius: 4px; background: #333; }
+    .source.canvas { color: #f5222d; background: #fff1f0; }
+    .source.google { color: #1890ff; background: #e6f7ff; }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div>
+      <div id="clock">00:00 AM</div>
+      <div id="date">Loading Date...</div>
+    </div>
+    <div class="weather-widget">
+      <div id="temp">--°F</div>
+      <div id="condition" style="font-size:0.8rem; color:#aaa;">Loading weather...</div>
+    </div>
+  </div>
+
+  <div class="section-title">Next Up</div>
+  <div id="events-list" class="list-container">
+    <div class="card">Connecting to Replit backbone...</div>
+  </div>
+
+  <div class="section-title">Active Alarms</div>
+  <div id="alarms-list">
+    <div class="card">No Alarms Set</div>
+  </div>
+
+  <!-- Audio asset optimization: Tiny embedded base64 or system beep loop -->
+  <audio id="alarm-sound" loop src="data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAA==\"></audio>
+
+  <script>
+    const REPLIT_URL = 'https://repl.co'; // Update to your active Replit URL
+
+    function updateClock() {
+      const now = new Date();
+      document.getElementById('clock').innerText = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      document.getElementById('date').innerText = now.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' });
+    }
+
+    async function fetchDashboardData() {
+      try {
+        const res = await fetch(`${REPLIT_URL}/api/dashboard`);
+        const data = await res.json();
+        
+        // Update Weather
+        document.getElementById('temp').innerText = data.weather.temp;
+        document.getElementById('condition').innerText = data.weather.condition;
+
+        // Update Unified Timeline
+        const eventsContainer = document.getElementById('events-list');
+        eventsContainer.innerHTML = data.events.length ? '' : '<div class="card">Clear schedule!</div>';
+        data.events.forEach(item => {
+          const timeString = new Date(item.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          eventsContainer.innerHTML += `
+            <div class="card">
+              <div>
+                <strong>${item.title}</strong>
+                <div style="font-size:0.8rem; color:#aaa; margin-top:3px;">Due at ${timeString}</div>
+              </div>
+              <span class="source ${item.source}">${item.source}</span>
+            </div>`;
+        });
+      } catch (err) {
+        console.error("Dashboard synchronization error:", err);
+      }
+    }
+
+    // Keep memory consumption extremely lean by executing isolated, flat interval ticks
+    setInterval(updateClock, 1000);
+    setInterval(fetchDashboardData, 60000); // Sync data hooks every 60 seconds
+    updateClock();
+    fetchDashboardData();
+  </script>
+</body>
+</html>
